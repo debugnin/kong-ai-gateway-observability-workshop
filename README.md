@@ -3,6 +3,10 @@
 Send **metrics, traces and logs** from a Kong AI Gateway 2.3 data plane to a **Grafana LGTM** stack with the
 **OpenTelemetry policy**, and monitor it with a Grafana dashboard modelled on the Konnect AI Manager overview page.
 
+![Kong AI Gateway: Overview dashboard](docs/images/dashboard-top.png)
+
+_Screenshot from this workshop. The numbers come from mock backends and generated traffic, not real usage. [Full dashboard](docs/images/dashboard-full.png)._
+
 ```mermaid
 flowchart LR
   KC["kongctl<br/>(YAML)"] -->|apply| CP["Konnect<br/>AI Gateway<br/>control plane"]

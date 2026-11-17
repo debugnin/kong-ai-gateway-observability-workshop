@@ -4,6 +4,10 @@ The dashboard **Kong AI Gateway: Overview** is a single JSON file that you can i
 
 **[`grafana/dashboards/kong-ai-gateway.json`](../grafana/dashboards/kong-ai-gateway.json)**
 
+![Kong AI Gateway: Overview dashboard](images/dashboard-top.png)
+
+_Simulated data from the workshop. [Full dashboard](images/dashboard-full.png)._
+
 It does not depend on the rest of this workshop. It needs a Kong AI Gateway 2.x that exports telemetry with the
 OpenTelemetry policy, and datasources that hold that telemetry. The datasources are **dashboard variables**, so there
 are no UIDs to edit.
