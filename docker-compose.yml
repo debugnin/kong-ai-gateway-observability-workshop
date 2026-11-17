@@ -1,0 +1,86 @@
+name: kong-aigw-observability
+
+networks:
+  lab: {}
+
+volumes:
+  lgtm-data: {}
+
+services:
+  # Grafana LGTM stack in one container: Loki (logs), Grafana, Tempo (traces), Mimir/Prometheus (metrics),
+  # plus an OpenTelemetry Collector listening on OTLP 4317 (gRPC) and 4318 (HTTP).
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    networks: [lab]
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"     # Grafana UI (admin / admin)
+      - "4318:4318"                      # OTLP/HTTP, published so you can curl it
+    volumes:
+      - lgtm-data:/data
+      - ./grafana/provisioning/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/kong.yaml:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards/kong:ro
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+
+  # Stand-in LLM provider. Speaks OpenAI chat completions and Anthropic messages, with random latency,
+  # occasional 5xx/429 and SSE streaming, so every dashboard panel gets data without real API keys.
+  mock-llm:
+    build: ./backends/llm-mock
+    networks: [lab]
+    environment:
+      PORT: "4010"
+      MOCK_LLM_KEY: ${MOCK_LLM_KEY:-mock-llm-key-change-me}
+
+  # Two simulated MCP servers (same image, different tools) so the MCP dashboard panels get data.
+  mcp-code:
+    build: ./backends/mcp-mock
+    networks: [lab]
+    environment: { PORT: "4020", TOOLSET: code }
+  mcp-finance:
+    build: ./backends/mcp-mock
+    networks: [lab]
+    environment: { PORT: "4020", TOOLSET: finance }
+
+  kong-data-plane:
+    image: ${DP_IMAGE:-kong/kong-ai-gateway:2.3.0}
+    networks: [lab]
+    depends_on: [lgtm, mock-llm, mcp-code, mcp-finance]
+    ports: ["${GATEWAY_PORT:-18000}:8000"]
+    volumes: ["./certs:/etc/kong/certs:ro"]
+    environment:
+      KONG_ROLE: data_plane
+      KONG_DATABASE: "off"
+      KONG_KONNECT_MODE: "on"
+      KONG_VITALS: "off"
+      KONG_CLUSTER_MTLS: pki
+      KONG_CLUSTER_CONTROL_PLANE: ${AIGW_CONTROL_PLANE}:443
+      KONG_CLUSTER_SERVER_NAME: ${AIGW_CONTROL_PLANE}
+      KONG_CLUSTER_TELEMETRY_ENDPOINT: ${AIGW_TELEMETRY}:443
+      KONG_CLUSTER_TELEMETRY_SERVER_NAME: ${AIGW_TELEMETRY}
+      KONG_CLUSTER_CERT: /etc/kong/certs/data-plane.crt
+      KONG_CLUSTER_CERT_KEY: /etc/kong/certs/data-plane.key
+      KONG_LUA_SSL_TRUSTED_CERTIFICATE: system
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      # Spans need core tracing on; the OpenTelemetry policy exports them.
+      KONG_TRACING_INSTRUMENTATIONS: request
+      KONG_TRACING_SAMPLING_RATE: "1.0"
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Steady, varied traffic: three consumers (teams), two models, streaming and non-streaming,
+  # plus a trickle of upstream failures. Start with: docker compose --profile traffic up -d
+  loadgen:
+    profiles: [traffic]
+    build: ./loadgen
+    networks: [lab]
+    depends_on: [kong-data-plane]
+    environment:
+      GATEWAY_URL: http://kong-data-plane:8000
+      KEY_TEAM_A: ${KEY_TEAM_A:-}
+      KEY_TEAM_B: ${KEY_TEAM_B:-}
+      KEY_TEAM_C: ${KEY_TEAM_C:-}
+      RPS: ${LOAD_RPS:-3}

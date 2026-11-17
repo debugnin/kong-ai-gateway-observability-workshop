@@ -1,0 +1,247 @@
+# Step 2: everything that runs on the gateway. Requires AI_GATEWAY_ID (written to .env by
+# scripts/01-bootstrap-gateway.sh) and the consumer keys + MOCK_LLM_KEY from .env.
+#   scripts/02-apply-config.sh
+_defaults:
+  kongctl:
+    namespace: kong-aigw-observability
+
+# ---- Who is calling: API-key auth. Consumers show up as kong.auth.consumer.name on every metric ----
+ai_gateway_auth_strategies:
+  - ref: workshop-keys
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: workshop-keys
+    display_name: "Workshop API keys"
+    type: key-auth
+    config:
+      key_names: [apikey]
+      key_in_header: true
+      key_in_query: false
+
+ai_gateway_consumers:
+  - ref: team-a
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: team-a
+    display_name: "Team A (heavy user)"
+    type: api-key
+    credentials:
+      - ref: team-a-key
+        name: team-a-key
+        type: api-key
+        api_key: !secret { source: !env KEY_TEAM_A }
+  - ref: team-b
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: team-b
+    display_name: "Team B"
+    type: api-key
+    credentials:
+      - ref: team-b-key
+        name: team-b-key
+        type: api-key
+        api_key: !secret { source: !env KEY_TEAM_B }
+  - ref: team-c
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: team-c
+    display_name: "Team C (light user)"
+    type: api-key
+    credentials:
+      - ref: team-c-key
+        name: team-c-key
+        type: api-key
+        api_key: !secret { source: !env KEY_TEAM_C }
+
+# Groups used by the MCP server ACLs below (ACLs match consumer GROUP names, not consumer names).
+ai_gateway_consumer_groups:
+  - ref: code-users
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: code-users
+    display_name: "Code MCP users"
+    consumers: [team-a, team-b, team-c]
+    policies: []
+  - ref: finance-users
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: finance-users
+    display_name: "Finance MCP users (not team-c)"
+    consumers: [team-a, team-b]
+    policies: []
+
+# ---- Two providers: an OpenAI-type and an Anthropic-type, both served by the mock-llm container ----
+ai_gateway_model_providers:
+  - ref: mock-openai
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: mock-openai
+    display_name: "Mock OpenAI-format provider"
+    type: openai
+    config:
+      auth:
+        type: basic
+        headers:
+          - name: Authorization
+            value: !secret { parts: ["Bearer ", !env MOCK_LLM_KEY] }
+  - ref: mock-anthropic
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: mock-anthropic
+    display_name: "Mock Anthropic-format provider"
+    type: anthropic
+    config:
+      auth:
+        type: basic
+        headers:
+          - name: x-api-key
+            value: !secret { source: !env MOCK_LLM_KEY }
+
+# ---- Three models. input_cost/output_cost ($ per 1M tokens) feed the kong.gen_ai.llm.cost metric ----
+# Clients always speak OpenAI chat completions; mock-claude is translated to the Anthropic format.
+ai_gateway_models:
+  - ref: mock-fast
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: mock-fast
+    type: model
+    display_name: "Mock fast (small model)"
+    enabled: true
+    capabilities: [generate]
+    formats: [{ type: openai }]
+    policies: []
+    access:
+      auth_strategies: [!ref workshop-keys#name]
+    config:
+      response_streaming: allow
+      logging: { payloads: false }
+      route:
+        paths: [/llm/fast/v1]
+        strip_path: true
+        model: { body_param: model, values: [mock-fast] }
+    targets:
+      - name: mock-fast
+        provider: !ref mock-openai#name
+        weight: 100
+        config:
+          type: openai
+          upstream_url: http://mock-llm:4010/v1/chat/completions
+          input_cost: 0.15
+          output_cost: 0.6
+  - ref: mock-smart
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: mock-smart
+    type: model
+    display_name: "Mock smart (large model)"
+    enabled: true
+    capabilities: [generate]
+    formats: [{ type: openai }]
+    policies: []
+    access:
+      auth_strategies: [!ref workshop-keys#name]
+    config:
+      response_streaming: allow
+      logging: { payloads: false }
+      route:
+        paths: [/llm/smart/v1]
+        strip_path: true
+        model: { body_param: model, values: [mock-smart] }
+    targets:
+      - name: mock-smart
+        provider: !ref mock-openai#name
+        weight: 100
+        config:
+          type: openai
+          upstream_url: http://mock-llm:4010/v1/chat/completions
+          input_cost: 2.5
+          output_cost: 10
+  - ref: mock-claude
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: mock-claude
+    type: model
+    display_name: "Mock Claude (Anthropic format)"
+    enabled: true
+    capabilities: [generate]
+    formats: [{ type: openai }]
+    policies: []
+    access:
+      auth_strategies: [!ref workshop-keys#name]
+    config:
+      response_streaming: allow
+      logging: { payloads: false }
+      route:
+        paths: [/llm/claude/v1]
+        strip_path: true
+        model: { body_param: model, values: [mock-claude] }
+    targets:
+      - name: mock-claude
+        provider: !ref mock-anthropic#name
+        weight: 100
+        config:
+          type: anthropic
+          version: "2023-06-01"
+          max_tokens: 1024
+          upstream_url: http://mock-llm:4010/v1/messages
+          input_cost: 3
+          output_cost: 15
+
+# ---- Two MCP servers (passthrough listener: the gateway proxies MCP and records MCP metrics) ----
+# Callers use the same API-key strategy as the models; Finance MCP excludes team-c. Metrics land as mcp.* and kong.gen_ai.mcp.* with
+# the mcp.method.name / gen_ai.tool.name attributes, which feed the MCP row of the dashboard.
+ai_gateway_mcp_servers:
+  - ref: code-mcp
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: code-mcp
+    display_name: "Code MCP"
+    type: passthrough-listener
+    enabled: true
+    policies: []
+    access:
+      auth_strategies: [!ref workshop-keys#name]
+      acl_attribute_type: consumer
+      acls:
+        allow: [code-users]
+    config:
+      url: http://mcp-code:4020/mcp
+      route: { paths: [/mcp/code], strip_path: true }
+      logging: { payloads: false }
+      server: { timeout: 60000 }
+  - ref: finance-mcp
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: finance-mcp
+    display_name: "Finance MCP"
+    type: passthrough-listener
+    enabled: true
+    policies: []
+    access:
+      auth_strategies: [!ref workshop-keys#name]
+      acl_attribute_type: consumer
+      acls:
+        allow: [finance-users]            # team-c is denied: shows up in the ACL denied metric
+    config:
+      url: http://mcp-finance:4020/mcp
+      route: { paths: [/mcp/finance], strip_path: true }
+      logging: { payloads: false }
+      server: { timeout: 60000 }
+
+# ---- Telemetry: ONE global OpenTelemetry policy sends metrics, traces and logs to Grafana LGTM ----
+# The LGTM container's built-in OpenTelemetry Collector accepts OTLP/HTTP on :4318 and routes metrics to
+# Mimir/Prometheus, traces to Tempo and logs to Loki.
+ai_gateway_policies:
+  - ref: opentelemetry
+    ai_gateway: !lookup { id: !env AI_GATEWAY_ID }
+    name: opentelemetry
+    display_name: "OpenTelemetry to Grafana LGTM"
+    type: opentelemetry
+    global: true
+    config:
+      metrics:
+        endpoint: http://lgtm:4318/v1/metrics
+        push_interval: 10
+        enable_ai_metrics: true
+        enable_latency_metrics: true
+        enable_request_metrics: true
+        enable_bandwidth_metrics: true
+        enable_consumer_attribute: true
+      traces_endpoint: http://lgtm:4318/v1/traces
+      sampling_rate: 1
+      logs_endpoint: http://lgtm:4318/v1/logs
+      access_logs:
+        endpoint: http://lgtm:4318/v1/logs
+      resource_attributes:
+        service.name: kong-ai-gateway
+        deployment.environment: workshop
+      queue:
+        max_batch_size: 50
+        max_coalescing_delay: 1

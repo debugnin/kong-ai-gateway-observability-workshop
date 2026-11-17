@@ -1,0 +1,25 @@
+# Step 1: the AI Gateway control plane in Konnect, plus the certificate the local Docker data plane uses
+# to authenticate to it over mTLS. Run by scripts/01-bootstrap-gateway.sh:
+#   kongctl apply -f kongctl/00-ai-gateway.yaml --base-dir . --auto-approve
+_defaults:
+  kongctl:
+    namespace: kong-aigw-observability
+
+ai_gateways:
+  - ref: kong-aigw-observability
+    name: kong-aigw-observability
+    display_name: "AI Gateway Observability Workshop"
+    description: "Workshop: AI Gateway 2.3 telemetry (metrics, traces, logs) into Grafana LGTM"
+    min_runtime_version: "2.3"
+    runtime_auto_upgrade: false
+    proxy_urls:
+      - host: localhost
+        port: 18000
+        protocol: http
+    labels:
+      workshop: observability
+    data_plane_certificates:
+      - ref: workshop-data-plane
+        title: observability-workshop-data-plane
+        description: "Local Docker data plane"
+        cert: !file ../certs/data-plane.crt
