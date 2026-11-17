@@ -14,6 +14,8 @@ flowchart LR
 
 **Full architecture, flows and design notes: [docs/architecture.md](docs/architecture.md).**
 
+**Only want the dashboard?** It is one JSON file that imports into any Grafana: [docs/import-dashboard.md](docs/import-dashboard.md).
+
 | Piece | How it is created |
 |---|---|
 | Konnect AI Gateway (control plane) + DP certificate | `kongctl apply -f kongctl/00-ai-gateway.yaml` |
@@ -36,7 +38,7 @@ No LLM API keys are needed: `mock-llm` stands in for the providers, with random 
 scripts/setup.sh        # about 2 minutes; safe to re-run
 ```
 
-Then open **http://localhost:3000/d/kong-ai-gateway-overview** (admin / admin).
+Then open **http://localhost:3000/d/kong-ai-gateway-overview** (no login needed: the lab Grafana gives anonymous users Admin rights).
 Tear down with `scripts/99-teardown.sh` (stops the stack and deletes **only** the `kong-aigw-observability` gateway, after asking).
 
 ## Lab 1: the control plane, created by kongctl

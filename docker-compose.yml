@@ -13,15 +13,12 @@ services:
     image: grafana/otel-lgtm:latest
     networks: [lab]
     ports:
-      - "${GRAFANA_PORT:-3000}:3000"     # Grafana UI (admin / admin)
+      - "${GRAFANA_PORT:-3000}:3000"     # Grafana UI (no login: the image enables anonymous Admin access)
       - "4318:4318"                      # OTLP/HTTP, published so you can curl it
     volumes:
       - lgtm-data:/data
       - ./grafana/provisioning/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/kong.yaml:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards/kong:ro
-    environment:
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
 
   # Stand-in LLM provider. Speaks OpenAI chat completions and Anthropic messages, with random latency,
   # occasional 5xx/429 and SSE streaming, so every dashboard panel gets data without real API keys.

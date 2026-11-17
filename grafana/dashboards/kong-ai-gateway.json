@@ -1,7 +1,7 @@
 {
  "uid": "kong-ai-gateway-overview",
  "title": "Kong AI Gateway: Overview",
- "description": "Modelled on the Konnect AI Manager overview page. Source: OpenTelemetry policy on AI Gateway 2.3 -> Grafana LGTM.",
+ "description": "Modelled on the Konnect AI Manager overview page. Needs the AI Gateway 2.x OpenTelemetry policy exporting metrics (with enable_ai_metrics, enable_latency_metrics, enable_request_metrics, enable_consumer_attribute) to a Prometheus-compatible store; the Traces and logs row also needs Tempo and Loki.",
  "tags": [
   "kong",
   "ai-gateway",
@@ -20,12 +20,66 @@
  "templating": {
   "list": [
    {
+    "name": "ds_prometheus",
+    "label": "Prometheus",
+    "type": "datasource",
+    "query": "prometheus",
+    "refresh": 1,
+    "hide": 0,
+    "multi": false,
+    "includeAll": false,
+    "current": {},
+    "options": []
+   },
+   {
+    "name": "ds_loki",
+    "label": "Loki",
+    "type": "datasource",
+    "query": "loki",
+    "refresh": 1,
+    "hide": 0,
+    "multi": false,
+    "includeAll": false,
+    "current": {},
+    "options": []
+   },
+   {
+    "name": "ds_tempo",
+    "label": "Tempo",
+    "type": "datasource",
+    "query": "tempo",
+    "refresh": 1,
+    "hide": 0,
+    "multi": false,
+    "includeAll": false,
+    "current": {},
+    "options": []
+   },
+   {
+    "name": "service_name",
+    "label": "OTel service.name",
+    "type": "textbox",
+    "query": "kong-ai-gateway",
+    "current": {
+     "text": "kong-ai-gateway",
+     "value": "kong-ai-gateway"
+    },
+    "options": [
+     {
+      "selected": true,
+      "text": "kong-ai-gateway",
+      "value": "kong-ai-gateway"
+     }
+    ],
+    "description": "Value of resource_attributes.service.name set on the OpenTelemetry policy. Used by the Loki and Tempo panels."
+   },
+   {
     "name": "provider",
     "label": "Providers",
     "type": "query",
     "datasource": {
      "type": "prometheus",
-     "uid": "prometheus"
+     "uid": "${ds_prometheus}"
     },
     "multi": true,
     "includeAll": true,
@@ -49,7 +103,7 @@
     "type": "query",
     "datasource": {
      "type": "prometheus",
-     "uid": "prometheus"
+     "uid": "${ds_prometheus}"
     },
     "multi": true,
     "includeAll": true,
@@ -73,7 +127,7 @@
     "type": "query",
     "datasource": {
      "type": "prometheus",
-     "uid": "prometheus"
+     "uid": "${ds_prometheus}"
     },
     "multi": true,
     "includeAll": true,
@@ -95,9 +149,9 @@
  },
  "links": [
   {
-   "title": "Konnect AI Manager",
+   "title": "Konnect (AI Manager > Overview)",
    "type": "link",
-   "url": "https://cloud.konghq.com/au/analytics/ai-manager/overview",
+   "url": "https://cloud.konghq.com/",
    "targetBlank": true,
    "icon": "external link"
   }
@@ -126,7 +180,7 @@
    "description": "p95 of gen_ai.server.request.duration: time from request received to response complete, as seen by the gateway.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -138,7 +192,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(increase(gen_ai_server_request_duration_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range])))",
      "legendFormat": "Now",
@@ -149,7 +203,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(increase(gen_ai_server_request_duration_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range] offset $__range)))",
      "legendFormat": "Previous period",
@@ -224,7 +278,7 @@
    "description": "Number of LLM requests (count of gen_ai.server.request.duration).",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -236,7 +290,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range]))",
      "legendFormat": "Now",
@@ -247,7 +301,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range] offset $__range))",
      "legendFormat": "Previous period",
@@ -314,7 +368,7 @@
    "description": "gen_ai.client.token.usage with gen_ai.token.type=total (input + output).",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -326,7 +380,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(gen_ai_client_token_usage_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",gen_ai_token_type=\"total\"}[$__range]))",
      "legendFormat": "Now",
@@ -337,7 +391,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(gen_ai_client_token_usage_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",gen_ai_token_type=\"total\"}[$__range] offset $__range))",
      "legendFormat": "Previous period",
@@ -404,7 +458,7 @@
    "description": "gen_ai.token.type=cached_tokens. Stays 0 here: the mock provider returns no cache usage.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -416,7 +470,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(gen_ai_client_token_usage_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",gen_ai_token_type=\"cached_tokens\"}[$__range])) or vector(0)",
      "legendFormat": "Now",
@@ -427,7 +481,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(gen_ai_client_token_usage_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",gen_ai_token_type=\"cached_tokens\"}[$__range] offset $__range)) or vector(0)",
      "legendFormat": "Previous period",
@@ -494,7 +548,7 @@
    "description": "Requests whose duration metric carries an error.type, divided by all requests.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -506,7 +560,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "(sum(increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",error_type!=\"\"}[$__range])) or vector(0)) / sum(increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range]))",
      "legendFormat": "Now",
@@ -517,7 +571,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "(sum(increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",error_type!=\"\"}[$__range] offset $__range)) or vector(0)) / sum(increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range] offset $__range))",
      "legendFormat": "Previous period",
@@ -592,7 +646,7 @@
    "description": "kong.gen_ai.llm.cost. Computed from input_cost / output_cost ($ per 1M tokens) on each model target.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -604,7 +658,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(kong_gen_ai_llm_cost_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range]))",
      "legendFormat": "Now",
@@ -615,7 +669,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(increase(kong_gen_ai_llm_cost_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range] offset $__range))",
      "legendFormat": "Previous period",
@@ -695,7 +749,7 @@
    "description": "Requests by model.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -707,7 +761,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "topk(5, sum by (gen_ai_request_model) (increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range])))",
      "legendFormat": "{{gen_ai_request_model}}",
@@ -757,7 +811,7 @@
    "description": "Requests by provider.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -769,7 +823,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "topk(5, sum by (gen_ai_provider_name) (increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range])))",
      "legendFormat": "{{gen_ai_provider_name}}",
@@ -819,7 +873,7 @@
    "description": "Requests by AI Consumer. Needs enable_consumer_attribute on the OpenTelemetry policy.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -831,7 +885,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "topk(5, sum by (kong_auth_consumer_name) (increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range])))",
      "legendFormat": "{{kong_auth_consumer_name}}",
@@ -881,7 +935,7 @@
    "description": "Total tokens by AI Consumer. (Konnect shows MCP Server here; see the MCP row below.)",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -893,7 +947,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "topk(5, sum by (kong_auth_consumer_name) (increase(gen_ai_client_token_usage_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",gen_ai_token_type=\"total\"}[$__range])))",
      "legendFormat": "{{kong_auth_consumer_name}}",
@@ -956,7 +1010,7 @@
    "description": "Requests per second, split by oneshot vs stream.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -968,7 +1022,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (kong_gen_ai_request_mode) (rate(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval]))",
      "legendFormat": "{{kong_gen_ai_request_mode}}",
@@ -1024,7 +1078,7 @@
    "description": "gen_ai.server.request.duration",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1036,7 +1090,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.5, sum by (le)(rate(gen_ai_server_request_duration_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p50",
@@ -1046,7 +1100,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(rate(gen_ai_server_request_duration_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p95",
@@ -1056,7 +1110,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.99, sum by (le)(rate(gen_ai_server_request_duration_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p99",
@@ -1112,7 +1166,7 @@
    "description": "Share of requests with an error.type.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1124,7 +1178,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "(sum(rate(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",error_type!=\"\"}[$__rate_interval])) or vector(0)) / sum(rate(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval]))",
      "legendFormat": "error rate",
@@ -1181,7 +1235,7 @@
    "description": "Input and output tokens per minute (the 'total' series is left out to avoid double counting).",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1193,7 +1247,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (gen_ai_token_type) (rate(gen_ai_client_token_usage_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",gen_ai_token_type=~\"input|output\"}[$__rate_interval])) * 60",
      "legendFormat": "{{gen_ai_token_type}}",
@@ -1249,7 +1303,7 @@
    "description": "gen_ai.server.time_to_first_token.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1261,7 +1315,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.5, sum by (le)(rate(gen_ai_server_time_to_first_token_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p50",
@@ -1271,7 +1325,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(rate(gen_ai_server_time_to_first_token_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p95",
@@ -1281,7 +1335,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.99, sum by (le)(rate(gen_ai_server_time_to_first_token_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p99",
@@ -1337,7 +1391,7 @@
    "description": "gen_ai.server.time_per_output_token.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1349,7 +1403,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.5, sum by (le)(rate(gen_ai_server_time_per_output_token_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p50",
@@ -1359,7 +1413,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(rate(gen_ai_server_time_per_output_token_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p95",
@@ -1369,7 +1423,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.99, sum by (le)(rate(gen_ai_server_time_per_output_token_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "p99",
@@ -1438,7 +1492,7 @@
    "description": "Cost (left axis, bars) against request volume (right axis, line).",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1450,7 +1504,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(rate(kong_gen_ai_llm_cost_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])) * 60",
      "legendFormat": "cost per minute ($)",
@@ -1460,7 +1514,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(rate(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])) * 60",
      "legendFormat": "requests per minute",
@@ -1560,7 +1614,7 @@
    "description": "Dollars per minute, stacked by model.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1572,7 +1626,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (gen_ai_request_model) (rate(kong_gen_ai_llm_cost_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])) * 60",
      "legendFormat": "{{gen_ai_request_model}}",
@@ -1641,7 +1695,7 @@
    "description": "Per model: request count, success rate and total tokens in the selected range.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1653,7 +1707,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (gen_ai_request_model) (increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range]))",
      "legendFormat": "",
@@ -1665,7 +1719,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "1 - ((sum by (gen_ai_request_model) (increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",error_type!=\"\"}[$__range]))) / sum by (gen_ai_request_model) (increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range])) or sum by (gen_ai_request_model) (increase(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__range])) * 0)",
      "legendFormat": "",
@@ -1677,7 +1731,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (gen_ai_request_model) (increase(gen_ai_client_token_usage_total{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",gen_ai_token_type=\"total\"}[$__range]))",
      "legendFormat": "",
@@ -1813,7 +1867,7 @@
    "description": "Request rate for each consumer and model pair.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1825,7 +1879,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (gen_ai_request_model, kong_auth_consumer_name) (rate(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval]))",
      "legendFormat": "{{kong_auth_consumer_name}} / {{gen_ai_request_model}}",
@@ -1881,7 +1935,7 @@
    "description": "Share of requests with an error.type, per model. Series appear once a model has failed at least once.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1893,7 +1947,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "(sum by (gen_ai_request_model) (rate(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\",error_type!=\"\"}[$__rate_interval]))) / sum by (gen_ai_request_model) (rate(gen_ai_server_request_duration_seconds_count{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval]))",
      "legendFormat": "{{gen_ai_request_model}}",
@@ -1950,7 +2004,7 @@
    "description": "p95 gen_ai.server.request.duration per model.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -1962,7 +2016,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le,gen_ai_request_model)(rate(gen_ai_server_request_duration_seconds_bucket{gen_ai_provider_name=~\"$provider\",gen_ai_request_model=~\"$model\",kong_auth_consumer_name=~\"$consumer\"}[$__rate_interval])))",
      "legendFormat": "{{gen_ai_request_model}}",
@@ -2031,7 +2085,7 @@
    "description": "tools/call count per MCP server (kong.service.name = the AI MCP Server name).",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -2043,7 +2097,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "topk(5, sum by (kong_service_name) (increase(mcp_server_operation_duration_seconds_count{mcp_method_name=\"tools/call\"}[$__range])))",
      "legendFormat": "{{kong_service_name}}",
@@ -2093,7 +2147,7 @@
    "description": "mcp.server.operation.duration count for tools/call, by server and tool.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -2105,7 +2159,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (kong_service_name, gen_ai_tool_name) (rate(mcp_server_operation_duration_seconds_count{mcp_method_name=\"tools/call\"}[$__rate_interval]))",
      "legendFormat": "{{kong_service_name}} / {{gen_ai_tool_name}}",
@@ -2161,7 +2215,7 @@
    "description": "kong.gen_ai.mcp.request.error.count. The mock's run_ci_flaky tool fails about 30% of the time.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -2173,7 +2227,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (kong_service_name, gen_ai_tool_name, error_type) (rate(kong_gen_ai_mcp_request_error_count_total[$__rate_interval]))",
      "legendFormat": "{{kong_service_name}} / {{gen_ai_tool_name}} ({{error_type}})",
@@ -2229,7 +2283,7 @@
    "description": "mcp.server.operation.duration for tools/call. slow_budget_report sleeps 1-3 s on purpose.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -2241,7 +2295,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le, gen_ai_tool_name)(rate(mcp_server_operation_duration_seconds_bucket{mcp_method_name=\"tools/call\"}[$__rate_interval])))",
      "legendFormat": "{{gen_ai_tool_name}}",
@@ -2297,7 +2351,7 @@
    "description": "kong.gen_ai.mcp.response.size",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 7,
@@ -2309,7 +2363,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le, kong_service_name)(rate(kong_gen_ai_mcp_response_size_bytes_bucket[$__rate_interval])))",
      "legendFormat": "{{kong_service_name}}",
@@ -2378,7 +2432,7 @@
    "description": "http.server.request.count by status. 200 = ok, 401 = bad key, 429/529 = provider errors passed back.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -2390,7 +2444,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum by (http_response_status_code) (rate(http_server_request_count_total[$__rate_interval]))",
      "legendFormat": "{{http_response_status_code}}",
@@ -2446,7 +2500,7 @@
    "description": "Gateway overhead is 'internal'; the LLM provider is 'upstream'.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 8,
@@ -2458,7 +2512,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(rate(kong_latency_total_seconds_bucket[$__rate_interval])))",
      "legendFormat": "total",
@@ -2468,7 +2522,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(rate(kong_latency_upstream_seconds_bucket[$__rate_interval])))",
      "legendFormat": "upstream (LLM)",
@@ -2478,7 +2532,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "histogram_quantile(0.95, sum by (le)(rate(kong_latency_internal_seconds_bucket[$__rate_interval])))",
      "legendFormat": "internal (Kong)",
@@ -2534,7 +2588,7 @@
    "description": "kong.cp.connection.status: 1 = data plane connected to Konnect.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -2546,7 +2600,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "min(kong_cp_connection_status_ratio)",
      "legendFormat": "",
@@ -2598,7 +2652,7 @@
    "description": "kong.dp.cluster.cert.expiry is an absolute timestamp; the panel subtracts now to show the time left on the mTLS certificate to Konnect.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -2610,7 +2664,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "min(kong_dp_cluster_cert_expiry_seconds) - time()",
      "legendFormat": "",
@@ -2666,7 +2720,7 @@
    "description": "Needs enable_bandwidth_metrics.",
    "datasource": {
     "type": "prometheus",
-    "uid": "prometheus"
+    "uid": "${ds_prometheus}"
    },
    "gridPos": {
     "h": 4,
@@ -2678,7 +2732,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(rate(http_server_request_size_bytes_sum[$__rate_interval])) / sum(rate(http_server_request_size_bytes_count[$__rate_interval]))",
      "legendFormat": "request",
@@ -2688,7 +2742,7 @@
     {
      "datasource": {
       "type": "prometheus",
-      "uid": "prometheus"
+      "uid": "${ds_prometheus}"
      },
      "expr": "sum(rate(http_server_response_size_bytes_sum[$__rate_interval])) / sum(rate(http_server_response_size_bytes_count[$__rate_interval]))",
      "legendFormat": "response",
@@ -2757,7 +2811,7 @@
    "description": "Click a trace ID to open the waterfall: a 'kong' request span with a 'chat <model>' child carrying the gen_ai.* attributes.",
    "datasource": {
     "type": "tempo",
-    "uid": "tempo"
+    "uid": "${ds_tempo}"
    },
    "gridPos": {
     "h": 10,
@@ -2769,13 +2823,13 @@
     {
      "datasource": {
       "type": "tempo",
-      "uid": "tempo"
+      "uid": "${ds_tempo}"
      },
      "refId": "A",
      "queryType": "traceql",
      "limit": 20,
      "tableType": "traces",
-     "query": "{ resource.service.name = \"kong-ai-gateway\" && span.gen_ai.request.model =~ \"$model\" }"
+     "query": "{ resource.service.name = \"$service_name\" && span.gen_ai.request.model =~ \"$model\" }"
     }
    ],
    "fieldConfig": {
@@ -2808,7 +2862,7 @@
    "description": "OTLP access logs from the policy's access_logs endpoint. In 2.3 they are emitted for responses Kong itself produces (for example 401 from a bad key), not for requests proxied to the LLM.",
    "datasource": {
     "type": "loki",
-    "uid": "loki"
+    "uid": "${ds_loki}"
    },
    "gridPos": {
     "h": 10,
@@ -2820,9 +2874,9 @@
     {
      "datasource": {
       "type": "loki",
-      "uid": "loki"
+      "uid": "${ds_loki}"
      },
-     "expr": "{service_name=\"kong-ai-gateway\"} | log_type=\"access\" | http_response_status_code=~\"4..|5..\"",
+     "expr": "{service_name=\"$service_name\"} | log_type=\"access\" | http_response_status_code=~\"4..|5..\"",
      "legendFormat": "",
      "refId": "A",
      "range": true
@@ -2861,7 +2915,7 @@
    "description": "Runtime (error log) and access log records per interval.",
    "datasource": {
     "type": "loki",
-    "uid": "loki"
+    "uid": "${ds_loki}"
    },
    "gridPos": {
     "h": 6,
@@ -2873,9 +2927,9 @@
     {
      "datasource": {
       "type": "loki",
-      "uid": "loki"
+      "uid": "${ds_loki}"
      },
-     "expr": "sum by (log_type) (count_over_time({service_name=\"kong-ai-gateway\"}[$__interval]))",
+     "expr": "sum by (log_type) (count_over_time({service_name=\"$service_name\"}[$__interval]))",
      "legendFormat": "{{log_type}}",
      "refId": "A",
      "range": true
@@ -2925,7 +2979,7 @@
    "description": "Kong error/runtime log, exported through logs_endpoint.",
    "datasource": {
     "type": "loki",
-    "uid": "loki"
+    "uid": "${ds_loki}"
    },
    "gridPos": {
     "h": 6,
@@ -2937,9 +2991,9 @@
     {
      "datasource": {
       "type": "loki",
-      "uid": "loki"
+      "uid": "${ds_loki}"
      },
-     "expr": "{service_name=\"kong-ai-gateway\"} | log_type=\"error\"",
+     "expr": "{service_name=\"$service_name\"} | log_type=\"error\"",
      "legendFormat": "",
      "refId": "A",
      "range": true

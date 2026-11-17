@@ -268,7 +268,7 @@ This is a **lab**. Several settings are deliberately relaxed and must not be cop
 
 | Setting | Workshop value | Why it is fine here, and what to do instead |
 |---|---|---|
-| Grafana login | `admin` / `admin`, anonymous Viewer enabled | Local only. Use SSO and real roles |
+| Grafana access | No login: anonymous users are Admin (the `grafana/otel-lgtm` default) | Local only. Use SSO and real roles |
 | Telemetry transport | Plain HTTP between the gateway and the collector, inside one Docker network | Use TLS (and `client_certificate` or headers for authentication) across hosts |
 | Data plane certificate | Self-signed, 365 days | Use your private CA and a rotation process |
 | Credentials | Generated API keys and a fixed mock-provider key in the local `.env` (gitignored) | Use a secret store; do not keep keys in files |

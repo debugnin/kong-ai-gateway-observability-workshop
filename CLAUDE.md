@@ -26,6 +26,7 @@ kongctl/00-ai-gateway.yaml   control plane + DP certificate (created once)
 kongctl/01-config.yaml       auth, consumers, groups, providers, models, MCP servers, OpenTelemetry policy
 docker-compose.yml           lgtm, mock-llm, mcp-code, mcp-finance, kong-data-plane, loadgen (profile: traffic)
 grafana/build_dashboard.py   SOURCE of the dashboard; writes grafana/dashboards/kong-ai-gateway.json
+docs/import-dashboard.md     how customers import the dashboard JSON into their own Grafana (keep in step with the dashboard)
 scripts/                     setup.sh, 00-/01-/02- steps, validate-dashboard.py, 99-teardown.sh
 backends/llm-mock, backends/mcp-mock, loadgen/   Node mocks and traffic generator
 ```
@@ -42,8 +43,9 @@ python3 scripts/validate-dashboard.py     # runs every panel query against live 
 
 - Scripts `cd` to the repo root themselves, but other shell calls start wherever the session started: use paths relative to the repo root.
 - Always `plan` before `apply`. Never hand-edit `kong-ai-gateway.json`; edit `build_dashboard.py`.
-- Grafana is at http://localhost:3000 (admin/admin, anonymous Viewer). Query datasources through its proxy, for example
-  `curl -u admin:admin localhost:3000/api/datasources/proxy/uid/prometheus/api/v1/query ...` (uids: `prometheus`, `loki`, `tempo`).
+- The dashboard must stay importable anywhere: datasources are variables (`${ds_prometheus}`, `${ds_loki}`, `${ds_tempo}`) and the Loki/Tempo service name is `$service_name`. Do not hard-code datasource UIDs or `kong-ai-gateway` in queries.
+- Grafana is at http://localhost:3000 with **no login**: the `grafana/otel-lgtm` image enables anonymous Admin access (admin/admin does not work). Query datasources through its proxy, for example
+  `curl localhost:3000/api/datasources/proxy/uid/prometheus/api/v1/query ...` (uids: `prometheus`, `loki`, `tempo`).
 - Dashboard changes: verify with `validate-dashboard.py`, and look at the rendered page when layout matters.
 - Telemetry takes about 60 s to appear after start. "Previous period" tiles stay empty until the stack has run twice the selected range.
 

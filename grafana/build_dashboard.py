@@ -7,9 +7,10 @@ Run:  python3 grafana/build_dashboard.py
 """
 import json, pathlib
 
-PROM = {"type": "prometheus", "uid": "prometheus"}
-LOKI = {"type": "loki", "uid": "loki"}
-TEMPO = {"type": "tempo", "uid": "tempo"}
+# Datasources are dashboard variables (ds_prometheus / ds_loki / ds_tempo) so the JSON imports into any Grafana.
+PROM = {"type": "prometheus", "uid": "${ds_prometheus}"}
+LOKI = {"type": "loki", "uid": "${ds_loki}"}
+TEMPO = {"type": "tempo", "uid": "${ds_tempo}"}
 
 # Dashboard-wide filters (the "All providers / All models / All agents" filters of the Konnect page).
 F = 'gen_ai_provider_name=~"$provider",gen_ai_request_model=~"$model",kong_auth_consumer_name=~"$consumer"'
@@ -283,24 +284,29 @@ next_row(4)
 row("Traces and logs")
 panel("table", "Recent LLM traces (Tempo)", 0, 12, 10,
       [{"datasource": TEMPO, "refId": "A", "queryType": "traceql", "limit": 20, "tableType": "traces",
-        "query": '{ resource.service.name = "kong-ai-gateway" && span.gen_ai.request.model =~ "$model" }'}],
+        "query": '{ resource.service.name = "$service_name" && span.gen_ai.request.model =~ "$model" }'}],
       ds=TEMPO, desc="Click a trace ID to open the waterfall: a 'kong' request span with a 'chat <model>' child carrying the gen_ai.* attributes.",
       options={"showHeader": True, "cellHeight": "sm"})
 panel("logs", "Gateway access logs, errors only (Loki)", 12, 12, 10,
-      [tgt('{service_name="kong-ai-gateway"} | log_type="access" | http_response_status_code=~"4..|5.."', "", "A", ds=LOKI)],
+      [tgt('{service_name="$service_name"} | log_type="access" | http_response_status_code=~"4..|5.."', "", "A", ds=LOKI)],
       ds=LOKI, desc="OTLP access logs from the policy's access_logs endpoint. In 2.3 they are emitted for responses Kong itself produces (for example 401 from a bad key), not for requests proxied to the LLM.",
       options={"showTime": True, "wrapLogMessage": False, "enableLogDetails": True, "sortOrder": "Descending", "dedupStrategy": "none"})
 next_row(10)
 panel("timeseries", "Log volume by type (Loki)", 0, 12, 6,
-      [tgt('sum by (log_type) (count_over_time({service_name="kong-ai-gateway"}[$__interval]))', "{{log_type}}", ds=LOKI)],
+      [tgt('sum by (log_type) (count_over_time({service_name="$service_name"}[$__interval]))', "{{log_type}}", ds=LOKI)],
       ds=LOKI, unit="short", desc="Runtime (error log) and access log records per interval.",
       custom={"drawStyle": "bars", "fillOpacity": 60, "stacking": {"mode": "normal", "group": "A"}, "lineWidth": 1},
       options={"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}})
 panel("logs", "Gateway runtime logs (Loki)", 12, 12, 6,
-      [tgt('{service_name="kong-ai-gateway"} | log_type="error"', "", "A", ds=LOKI)],
+      [tgt('{service_name="$service_name"} | log_type="error"', "", "A", ds=LOKI)],
       ds=LOKI, desc="Kong error/runtime log, exported through logs_endpoint.",
       options={"showTime": True, "wrapLogMessage": False, "sortOrder": "Descending"})
 next_row(6)
+
+
+def dsvar(name, label, kind):
+    return {"name": name, "label": label, "type": "datasource", "query": kind, "refresh": 1, "hide": 0,
+            "multi": False, "includeAll": False, "current": {}, "options": []}
 
 
 def tvar(name, label, metric, lbl):
@@ -312,16 +318,22 @@ def tvar(name, label, metric, lbl):
 dash = {
     "uid": "kong-ai-gateway-overview",
     "title": "Kong AI Gateway: Overview",
-    "description": "Modelled on the Konnect AI Manager overview page. Source: OpenTelemetry policy on AI Gateway 2.3 -> Grafana LGTM.",
+    "description": "Modelled on the Konnect AI Manager overview page. Needs the AI Gateway 2.x OpenTelemetry policy exporting metrics (with enable_ai_metrics, enable_latency_metrics, enable_request_metrics, enable_consumer_attribute) to a Prometheus-compatible store; the Traces and logs row also needs Tempo and Loki.",
     "tags": ["kong", "ai-gateway", "opentelemetry"],
     "timezone": "browser", "schemaVersion": 39, "version": 1, "editable": True, "graphTooltip": 1,
     "refresh": "10s", "time": {"from": "now-30m", "to": "now"},
     "templating": {"list": [
+        dsvar("ds_prometheus", "Prometheus", "prometheus"),
+        dsvar("ds_loki", "Loki", "loki"),
+        dsvar("ds_tempo", "Tempo", "tempo"),
+        {"name": "service_name", "label": "OTel service.name", "type": "textbox", "query": "kong-ai-gateway",
+         "current": {"text": "kong-ai-gateway", "value": "kong-ai-gateway"}, "options": [{"selected": True, "text": "kong-ai-gateway", "value": "kong-ai-gateway"}],
+         "description": "Value of resource_attributes.service.name set on the OpenTelemetry policy. Used by the Loki and Tempo panels."},
         tvar("provider", "Providers", TOK, "gen_ai_provider_name"),
         tvar("model", "AI Gateway models", TOK, "gen_ai_request_model"),
         tvar("consumer", "Consumers", TOK, "kong_auth_consumer_name"),
     ]},
-    "links": [{"title": "Konnect AI Manager", "type": "link", "url": "https://cloud.konghq.com/au/analytics/ai-manager/overview", "targetBlank": True, "icon": "external link"}],
+    "links": [{"title": "Konnect (AI Manager > Overview)", "type": "link", "url": "https://cloud.konghq.com/", "targetBlank": True, "icon": "external link"}],
     "annotations": {"list": []},
     "panels": panels,
 }

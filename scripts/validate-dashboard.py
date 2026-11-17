@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """Runs every panel query of the provisioned dashboard against Grafana's datasources and reports errors / empty panels.
-Usage: python3 scripts/validate-dashboard.py [grafana_url]   (default http://localhost:3000, admin/admin)"""
-import base64, json, re, sys, time, urllib.parse, urllib.request
+Usage: python3 scripts/validate-dashboard.py [grafana_url]   (default http://localhost:3000, anonymous access)"""
+import json, re, sys, time, urllib.parse, urllib.request
 
 G = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3000"
-AUTH = "Basic " + base64.b64encode(b"admin:admin").decode()
 
 
 def get(path):
-    r = urllib.request.Request(G + path, headers={"Authorization": AUTH})
+    r = urllib.request.Request(G + path, headers={})
     return json.load(urllib.request.urlopen(r, timeout=30))
 
 
 def sub(e):
-    for k, v in {"$provider": ".*", "$model": ".*", "$consumer": ".*", "$__range": "30m", "$__rate_interval": "1m", "$__interval": "1m"}.items():
+    for k, v in {"$provider": ".*", "$model": ".*", "$consumer": ".*", "$service_name": "kong-ai-gateway", "$__range": "30m", "$__rate_interval": "1m", "$__interval": "1m"}.items():
         e = e.replace(k, v)
     return e
 

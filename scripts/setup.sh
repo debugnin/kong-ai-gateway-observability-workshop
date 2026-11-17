@@ -16,5 +16,5 @@ done
 echo "==> waiting for telemetry in Grafana (about 60 s)"; sleep 60
 python3 scripts/validate-dashboard.py || true
 echo
-echo "Grafana:    http://localhost:${GRAFANA_PORT:-3000}/d/kong-ai-gateway-overview   (admin / admin)"
+echo "Grafana:    http://localhost:${GRAFANA_PORT:-3000}/d/kong-ai-gateway-overview   (no login needed)"
 echo "Gateway:    http://localhost:${GATEWAY_PORT:-18000}"
