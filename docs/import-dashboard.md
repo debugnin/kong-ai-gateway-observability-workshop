@@ -135,6 +135,7 @@ It uses the datasource UIDs `prometheus`, `loki` and `tempo` and anonymous acces
 | Error panels always 0 | `enable_request_metrics` is off, so `error_type` is never set |
 | Users panels are empty or show a single unnamed entry | `enable_consumer_attribute` is off, or the requests are not authenticated to a consumer |
 | Cost is 0 | `input_cost` / `output_cost` are not set on the model targets |
+| "Gateway runtime logs" empty while access logs and metrics work | The data plane log level is the default `notice`, which writes almost no runtime lines when healthy. Set `KONG_LOG_LEVEL=info` on the data plane (this workshop does) |
 | Log panels empty | Logs are not reaching Loki, or your Loki does not turn the OTLP `service.name` into a `service_name` label, or **OTel service.name** does not match. Also see the access-log note below |
 | Trace table empty | Traces are not reaching Tempo, or **OTel service.name** does not match |
 | MCP row empty | No MCP server is configured on the gateway |

@@ -2976,7 +2976,7 @@
    "id": 44,
    "type": "logs",
    "title": "Gateway runtime logs (Loki)",
-   "description": "Kong error/runtime log, exported through logs_endpoint.",
+   "description": "Kong error/runtime log, exported through logs_endpoint. Needs the data plane log level info (KONG_LOG_LEVEL); at the default notice a healthy gateway writes almost none.",
    "datasource": {
     "type": "loki",
     "uid": "${ds_loki}"

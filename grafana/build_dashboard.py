@@ -299,7 +299,7 @@ panel("timeseries", "Log volume by type (Loki)", 0, 12, 6,
       options={"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}})
 panel("logs", "Gateway runtime logs (Loki)", 12, 12, 6,
       [tgt('{service_name="$service_name"} | log_type="error"', "", "A", ds=LOKI)],
-      ds=LOKI, desc="Kong error/runtime log, exported through logs_endpoint.",
+      ds=LOKI, desc="Kong error/runtime log, exported through logs_endpoint. Needs the data plane log level info (KONG_LOG_LEVEL); at the default notice a healthy gateway writes almost none.",
       options={"showTime": True, "wrapLogMessage": False, "sortOrder": "Descending"})
 next_row(6)
 

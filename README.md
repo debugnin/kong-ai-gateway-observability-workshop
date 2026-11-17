@@ -100,7 +100,7 @@ Why each metrics flag matters (from the AI Gateway docs): `enable_ai_metrics` tu
 
 - Prometheus: `gen_ai_client_token_usage_total` and `kong_gen_ai_llm_cost_total`
 - Tempo (TraceQL): `{ span.gen_ai.request.model != nil }`, then open a trace: a `kong` span with a child `chat <model>` span carrying `gen_ai.*` attributes
-- Loki: `{service_name="kong-ai-gateway"} | log_type="error"`
+- Loki: `{service_name="kong-ai-gateway"} | log_type="error"` (the data plane runs with `KONG_LOG_LEVEL=info`; at the default `notice` a healthy gateway writes almost no runtime log lines and the panel stays empty)
 
 OTLP name mapping used by the dashboard: `gen_ai.server.request.duration` → `gen_ai_server_request_duration_seconds_*`,
 `gen_ai.client.token.usage` → `gen_ai_client_token_usage_total`, `kong.gen_ai.llm.cost` → `kong_gen_ai_llm_cost_total`,

@@ -62,6 +62,9 @@ services:
       # Spans need core tracing on; the OpenTelemetry policy exports them.
       KONG_TRACING_INSTRUMENTATIONS: request
       KONG_TRACING_SAMPLING_RATE: "1.0"
+      # Runtime (error log) lines are exported by the OpenTelemetry policy. At the default level (notice)
+      # a healthy gateway writes almost none, so the runtime log panel would be empty.
+      KONG_LOG_LEVEL: info
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 10s

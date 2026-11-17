@@ -67,6 +67,7 @@ python3 scripts/validate-dashboard.py     # runs every panel query against live 
 - Successful requests have an empty `error_type` label, so errors are `error_type!=""`.
 - `kong_dp_cluster_cert_expiry_seconds` is an absolute timestamp; subtract `time()`.
 - The collector in `grafana/otel-lgtm` sends metrics to **Prometheus** (OTLP endpoint), not Mimir.
+- Runtime logs (`log_type="error"`) need `KONG_LOG_LEVEL=info` on the DP; at `notice` they appear only on events (startup, export timeouts).
 - Loki fields such as `log_type` are structured metadata: filter with `| log_type="access"`, not in the stream selector.
 - In 2.3, OTLP **access logs** only appeared for responses Kong itself produces (401, 403, 404), not for proxied LLM requests. Use traces and metrics for AI traffic.
 - `kong.gen_ai.mcp.acl.allowed/denied` produced no series with server-level ACLs, so no panel uses them.
